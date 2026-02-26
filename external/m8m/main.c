@@ -2,6 +2,7 @@
 
 #include <stdint.h>
 #include <stdio.h>
+#include <stdbool.h>
 //#include <stdlib.h>
 //#include <hidapi/hidapi.h>
 //#include <unistd.h>
@@ -20,6 +21,7 @@ enum{
 };
 
 int cli_debug_level = LOG_FATAL;
+bool cli_json_output = false;
 
 int cli_requested_dpi = -1;
 int cli_requested_led = -1;
@@ -27,7 +29,35 @@ int cli_requested_speed = -1;
 
 
 
+void print_device_state_json(){
+    printf("{\n");
+    
+    mode *dpi_mode = device_get_active_mode(M8_DEVICE_MODE_DPI);
+    printf("  \"dpi_mode\": \"%s\",\n", dpi_mode ? dpi_mode->label : "unknown");
+    
+    printf("  \"dpi_resolution\": [\n");
+    for(int i=0; i<M8_DPI_RES_COUNT; i++){
+        mode *dpires_mode = device_get_mode_value(M8_DEVICE_MODE_DPI_RES, i);
+        printf("    \"%s\"", dpires_mode ? dpires_mode->label : "N/A");
+        if(i < M8_DPI_RES_COUNT - 1) printf(",");
+        printf("\n");
+    }
+    printf("  ],\n");
+    
+    mode *led_mode = device_get_active_mode(M8_DEVICE_MODE_LED);
+    printf("  \"led_mode\": \"%s\",\n", led_mode ? led_mode->label : "unknown");
+    
+    mode *speed_mode = device_get_active_mode(M8_DEVICE_MODE_SPEED);
+    printf("  \"led_speed\": \"%s\"\n", speed_mode ? speed_mode->label : "unknown");
+    
+    printf("}\n");
+}
+
 void print_device_state(){
+    if(cli_json_output){
+        print_device_state_json();
+        return;
+    }
     //log_trace("print_device_state: Printing device state");
 
     mode *dpi_mode = device_get_active_mode(M8_DEVICE_MODE_DPI);
@@ -90,8 +120,51 @@ void print_single_mode(char *label, mode* curr){
     printf("%s", buffer);
 }
 
-void print_modes(){
+void print_modes_json(){
+    printf("{\n");
     
+    mode *curr;
+    
+    printf("  \"dpi_modes\": [");
+    curr = device_get_all_modes(M8_DEVICE_MODE_DPI);
+    for(int i = 0; curr->label; i++, curr++){
+        if(i > 0) printf(", ");
+        printf("\"%s\"", curr->label);
+    }
+    printf("],\n");
+    
+    printf("  \"dpi_resolution\": [");
+    curr = device_get_all_modes(M8_DEVICE_MODE_DPI_RES);
+    for(int i = 0; curr->label; i++, curr++){
+        if(i > 0) printf(", ");
+        printf("\"%s\"", curr->label);
+    }
+    printf("],\n");
+    
+    printf("  \"led_modes\": [");
+    curr = device_get_all_modes(M8_DEVICE_MODE_LED);
+    for(int i = 0; curr->label; i++, curr++){
+        if(i > 0) printf(", ");
+        printf("\"%s\"", curr->label);
+    }
+    printf("],\n");
+    
+    printf("  \"led_speeds\": [");
+    curr = device_get_all_modes(M8_DEVICE_MODE_SPEED);
+    for(int i = 0; curr->label; i++, curr++){
+        if(i > 0) printf(", ");
+        printf("\"%s\"", curr->label);
+    }
+    printf("]\n");
+    
+    printf("}\n");
+}
+
+void print_modes(){
+    if(cli_json_output){
+        print_modes_json();
+        return;
+    }
     
     printf("Known modes\n");
     
@@ -113,10 +186,14 @@ void print_modes(){
 
 
 void print_usage(){
+    if(cli_json_output){
+        printf("{\"error\": \"invalid arguments\", \"usage\": \"m8mouser [-j] [-l] [-dpi D] [-led L] [-speed S]\"}\n");
+        return;
+    }
     printf("Usage: \n"
     "    m8mouser \n"
     "    m8mouser -l \n"
-    "    m8mouser [-dpi D | -led L | -speed S]\n"
+    "       -j     output JSON format for Electron app integration\n"
     "    \n"
     "    Options: \n"
     "       -l     list known modes and values\n"
@@ -149,6 +226,8 @@ int process_args(int argc, char *argv[]){
             cli_debug_level = LOG_INFO;
         }else if(!strcmp(option, "-g2")){
             cli_debug_level = LOG_TRACE;
+        }else if(!strcmp(option, "-j")){
+            cli_json_output = true;
         }else if(!strcmp(option, "-l")){
             return RUN_ACTION_LIST;
         }else if(!strcmp(option, "-dpi")){
@@ -212,26 +291,34 @@ int main(int argc, char *argv[]){
     
         
     if(device_init()){
-        printf("Error initialising device. May not be connected or no user permission\n");
-        printf("      - check that device %04x:%04x is connected to usb (lsusb)\n", USB_M8_VID, USB_M8_PID);
-        printf("      - run with sudo or add uaccess to udev rules (see README.md)\n");
+        if(cli_json_output){
+            printf("{\"error\": \"device_init_failed\", \"message\": \"Error initialising device. May not be connected or no user permission\", \"vid\": \"%04x\", \"pid\": \"%04x\"}\n", USB_M8_VID, USB_M8_PID);
+        } else {
+            printf("Error initialising device. May not be connected or no user permission\n");
+            printf("      - check that device %04x:%04x is connected to usb (lsusb)\n", USB_M8_VID, USB_M8_PID);
+            printf("      - run with sudo or add uaccess to udev rules (see README.md)\n");
+        }
         return 1;
     }
     
-    puts("Getting device modes");
+    if(!cli_json_output) puts("Getting device modes");
     device_query();
     //print_device_mem();
-    print_device_state();
+    
+    // In JSON mode with SET action, skip initial state - only show final result
+    if(!(cli_json_output && run_action == RUN_ACTION_SET)){
+        print_device_state();
+    }
 
     if(run_action == RUN_ACTION_SET){
         if(!device_set_modes(cli_requested_dpi, cli_requested_led, cli_requested_speed)){
             //device_update_state();
             //print_device_state();
             
-            puts("Updating device modes");
+        if(!cli_json_output) puts("Updating device modes");
             device_update();
             //verify by querying again
-            puts("Refreshing device modes");
+            if(!cli_json_output) puts("Refreshing device modes");
             device_query();
             print_device_state();
         }
