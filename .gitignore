@@ -5,3 +5,6 @@ out
 .eslintcache
 *.log*
 external/m8m/build/
+resources/linux/
+resources/windows/
+resources/mac/
