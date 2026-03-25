@@ -2,10 +2,12 @@ import React from 'react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs'
 import DPISettings from './dpi-settings'
 import LEDSettings from './led-settings'
-import ThumbKeyBindings from './thumb-key-bindings'
+import { useHIDStore } from '@renderer/hooks/use-hid'
+import { Loader2 } from 'lucide-react'
 
 const Operations = (): React.JSX.Element => {
-  const tabs: { label: string; value: string }[] = [
+  const {loading} = useHIDStore();
+   const tabs: { label: string; value: string }[] = [
     {
       label: 'DPI Settings',
       value: 'dpi'
@@ -13,15 +15,17 @@ const Operations = (): React.JSX.Element => {
     {
       label: 'LED Settings',
       value: 'led'
-    },
-    {
-      label: 'Thumb Key Bindings',
-      value: 'thumb-bindings'
     }
   ]
   return (
     <div className="h-full w-full flex flex-col border p-2 rounded-lg">
-      <Tabs defaultValue={'dpi'} className="w-full h-full">
+      {
+        loading ? (
+          <div className="flex items-center justify-center h-full w-full">
+            <Loader2 className="animate-spin" />
+          </div>
+        ) : (
+          <Tabs defaultValue={'dpi'} className="w-full h-full">
         <TabsList className=" m-0 p-0 border-none bg-transparent border-b flex w-full justify-between items-center">
           {tabs.map((tab, index) => (
             <TabsTrigger
@@ -40,10 +44,9 @@ const Operations = (): React.JSX.Element => {
         <TabsContent value={'led'} className="h-full w-full">
           <LEDSettings />
         </TabsContent>
-        <TabsContent value={'thumb-bindings'} className="h-full w-full">
-          <ThumbKeyBindings />
-        </TabsContent>
       </Tabs>
+        )
+      }
     </div>
   )
 }

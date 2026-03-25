@@ -3,7 +3,8 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdbool.h>
-//#include <stdlib.h>
+#include <string.h>
+#include <stdlib.h>
 //#include <hidapi/hidapi.h>
 //#include <unistd.h>
 
@@ -29,23 +30,54 @@ int cli_requested_speed = -1;
 
 
 
+const char* strip_label(const char* label) {
+    static char buffer[128];
+    const char* start = strchr(label, '(');
+    if (start) {
+        start++;
+        const char* end = strchr(start, ')');
+        if (end) {
+            size_t len = end - start;
+            if (len < sizeof(buffer)) {
+                strncpy(buffer, start, len);
+                buffer[len] = '\0';
+                return buffer;
+            }
+        }
+    }
+    return label;
+}
+
 void print_device_state_json(){
     printf("{\n");
     
-    mode *dpi_mode = device_get_active_mode(M8_DEVICE_MODE_DPI);
-    printf("  \"dpi_mode\": \"%s\",\n", dpi_mode ? dpi_mode->label : "unknown");
+    // Get active DPI slot index (0-5)
+    mode *dpi_slot = device_get_active_mode(M8_DEVICE_MODE_DPI);
+    int active_slot_idx = -1;
+    if (dpi_slot) {
+        // Since labels are "1", "2", etc., we can find the index
+        active_slot_idx = atoi(dpi_slot->label) - 1;
+    }
+
+    // Get the resolution for that active slot
+    mode *dpi_mode = NULL;
+    if (active_slot_idx >= 0 && active_slot_idx < M8_DPI_RES_COUNT) {
+        dpi_mode = device_get_mode_value(M8_DEVICE_MODE_DPI_RES, active_slot_idx);
+    }
+
+    printf("  \"dpi_mode\": \"%s\",\n", dpi_mode ? strip_label(dpi_mode->label) : "unknown");
     
     printf("  \"dpi_resolution\": [\n");
     for(int i=0; i<M8_DPI_RES_COUNT; i++){
         mode *dpires_mode = device_get_mode_value(M8_DEVICE_MODE_DPI_RES, i);
-        printf("    \"%s\"", dpires_mode ? dpires_mode->label : "N/A");
+        printf("    \"%s\"", dpires_mode ? strip_label(dpires_mode->label) : "N/A");
         if(i < M8_DPI_RES_COUNT - 1) printf(",");
         printf("\n");
     }
     printf("  ],\n");
     
     mode *led_mode = device_get_active_mode(M8_DEVICE_MODE_LED);
-    printf("  \"led_mode\": \"%s\",\n", led_mode ? led_mode->label : "unknown");
+    printf("  \"led_mode\": \"%s\",\n", led_mode ? strip_label(led_mode->label) : "unknown");
     
     mode *speed_mode = device_get_active_mode(M8_DEVICE_MODE_SPEED);
     printf("  \"led_speed\": \"%s\"\n", speed_mode ? speed_mode->label : "unknown");
@@ -137,7 +169,7 @@ void print_modes_json(){
     curr = device_get_all_modes(M8_DEVICE_MODE_DPI_RES);
     for(int i = 0; curr->label; i++, curr++){
         if(i > 0) printf(", ");
-        printf("\"%s\"", curr->label);
+        printf("\"%s\"", strip_label(curr->label));
     }
     printf("],\n");
     
@@ -145,7 +177,7 @@ void print_modes_json(){
     curr = device_get_all_modes(M8_DEVICE_MODE_LED);
     for(int i = 0; curr->label; i++, curr++){
         if(i > 0) printf(", ");
-        printf("\"%s\"", curr->label);
+        printf("\"%s\"", strip_label(curr->label));
     }
     printf("],\n");
     

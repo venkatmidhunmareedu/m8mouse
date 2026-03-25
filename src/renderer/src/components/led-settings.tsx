@@ -10,15 +10,29 @@ import {
   SelectItem,
   SelectLabel
 } from './ui/select'
+import { useHIDStore } from '@renderer/hooks/use-hid'
+import { useEffect, useMemo, useState } from 'react'
 
 const LEDSettings = (): React.JSX.Element => {
+  const { config, loading } = useHIDStore();
+  const configMemo = useMemo(() => config, [config])
+  const [ledMode, setLedMode] = useState<string>('');
+  const [ledSpeed, setLedSpeed] = useState<string>('');
+  useEffect(() => {
+    if (configMemo) {
+      setTimeout(() => {
+        setLedMode(configMemo?.led_mode?.toString() || '')
+        setLedSpeed(configMemo?.led_speed?.toString() || '')
+      }, 1)
+    }
+  }, [configMemo])
   return (
     <FieldContainer>
       <div className="flex w-full justify-between">
         <Label htmlFor="led-mode" className="text-xs font-semibold w-1/3">
           LED Mode :
         </Label>
-        <Select>
+        <Select value={ledMode} onValueChange={(value) => setLedMode(value)} disabled={loading}>
           <SelectTrigger className="w-full text-xs">
             <SelectValue placeholder="Select a Mode" />
           </SelectTrigger>
@@ -26,7 +40,7 @@ const LEDSettings = (): React.JSX.Element => {
             <SelectGroup>
               <SelectLabel className="">Mode</SelectLabel>
               {Object.entries(LED_MODES).map(([key, value]) => (
-                <SelectItem key={key} value={value.toString()} className="text-xs">
+                <SelectItem key={key} value={key} className="text-xs">
                   {key}
                 </SelectItem>
               ))}
@@ -38,7 +52,7 @@ const LEDSettings = (): React.JSX.Element => {
         <Label htmlFor="led-mode" className="text-xs font-semibold w-1/3">
           LED Speed :
         </Label>
-        <Select>
+        <Select value={ledSpeed} onValueChange={(value) => setLedSpeed(value)} disabled={loading}>
           <SelectTrigger className="w-full text-xs">
             <SelectValue placeholder="Select a Speed" />
           </SelectTrigger>

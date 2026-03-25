@@ -11,3 +11,6 @@ pre-build-windows:
 	mkdir -p resources/windows/
 	mv external/m8m/build/m8mouse.exe resources/windows/
 	
+
+# sudo chown root:root /home/midhun/Desktop/m8mouse/node_modules/.pnpm/electron@39.6.1/node_modules/electron/dist/chrome-sandbox
+# sudo chmod 4755 /home/midhun/Desktop/m8mouse/node_modules/.pnpm/electron@39.6.1/node_modules/electron/dist/chrome-sandbox

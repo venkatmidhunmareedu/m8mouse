@@ -1,8 +1,13 @@
-import { contextBridge } from 'electron'
+import { contextBridge, ipcRenderer } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
 
 // Custom APIs for renderer
-const api = {}
+const api = {
+  m8m : {
+    getData: () => ipcRenderer.invoke('m8m:get-data'),
+  setData: (data: { dpi_mode: number; led_mode: number }) => ipcRenderer.invoke('m8m:set-data', data)
+  }
+}
 
 // Use `contextBridge` APIs to expose Electron APIs to
 // renderer only if context isolation is enabled, otherwise
